@@ -13,7 +13,6 @@ export function getMediaInfo(url) {
       '--dump-json',
       '--no-warnings',
       '--no-playlist',
-      '--flat-playlist',
       '--force-ipv4'
     ];
 
