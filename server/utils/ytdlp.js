@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 /**
  * Fetch media information using yt-dlp --dump-json
@@ -12,9 +13,15 @@ export function getMediaInfo(url) {
       '--dump-json',
       '--no-warnings',
       '--no-playlist',
-      '--flat-playlist',
-      url
+      '--flat-playlist'
     ];
+
+    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
+    if (fs.existsSync(cookiesPath)) {
+      args.push('--cookies', cookiesPath);
+    }
+
+    args.push(url);
 
     const proc = spawn('yt-dlp', args);
     let stdout = '';
@@ -160,9 +167,15 @@ export function downloadMedia(url, formatId, outputPath, ext, onProgress) {
       '--no-playlist',
       '--no-warnings',
       '--newline', // Each progress update on a new line
-      '-o', outputTemplate,
-      url
+      '-o', outputTemplate
     ];
+
+    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
+    if (fs.existsSync(cookiesPath)) {
+      args.push('--cookies', cookiesPath);
+    }
+    
+    args.push(url);
 
     // If audio only, extract audio
     if (ext === 'mp3') {
