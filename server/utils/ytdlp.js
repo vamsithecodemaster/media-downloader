@@ -14,8 +14,7 @@ export function getMediaInfo(url) {
       '--no-warnings',
       '--no-playlist',
       '--flat-playlist',
-      '--force-ipv4',
-      '--extractor-args', 'youtube:player_client=android,web'
+      '--force-ipv4'
     ];
 
     const cookiesPath = path.join(process.cwd(), 'cookies.txt');
@@ -170,7 +169,6 @@ export function downloadMedia(url, formatId, outputPath, ext, onProgress) {
       '--no-warnings',
       '--newline', // Each progress update on a new line
       '--force-ipv4',
-      '--extractor-args', 'youtube:player_client=android,web',
       '-o', outputTemplate
     ];
 
