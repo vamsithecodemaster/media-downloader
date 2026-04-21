@@ -13,7 +13,9 @@ export function getMediaInfo(url) {
       '--dump-json',
       '--no-warnings',
       '--no-playlist',
-      '--flat-playlist'
+      '--flat-playlist',
+      '--force-ipv4',
+      '--extractor-args', 'youtube:player_client=android,web'
     ];
 
     const cookiesPath = path.join(process.cwd(), 'cookies.txt');
@@ -167,6 +169,8 @@ export function downloadMedia(url, formatId, outputPath, ext, onProgress) {
       '--no-playlist',
       '--no-warnings',
       '--newline', // Each progress update on a new line
+      '--force-ipv4',
+      '--extractor-args', 'youtube:player_client=android,web',
       '-o', outputTemplate
     ];
 
