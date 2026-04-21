@@ -119,6 +119,11 @@ async function handleFetch() {
     return;
   }
 
+  if (/(?:youtube\.com|youtu\.be)/i.test(url)) {
+    showToast('YouTube is no longer supported.', 'error');
+    return;
+  }
+
   setLoading(true);
   resetUI();
 

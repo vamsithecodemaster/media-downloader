@@ -32,6 +32,9 @@ router.post('/info', async (req, res) => {
     // Basic URL validation
     try {
       new URL(url);
+      if (/(?:youtube\.com|youtu\.be)/i.test(url)) {
+        return res.status(400).json({ error: 'YouTube links are not supported.' });
+      }
     } catch {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
