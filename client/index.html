@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- SEO Primary Meta Tags -->
+  <title>MediaGrab — Personal Social Media Backup Tool | 4K Archivist</title>
+  <meta name="title" content="MediaGrab — Personal Social Media Backup Tool | 4K Archivist">
+  <meta name="description" content="Securely backup your personal videos, audio, and media from YouTube, Instagram, Twitter, TikTok, and 1000+ other sites. Archive your content in the highest 4K 60fps quality." />
+  <meta name="keywords" content="social media backup, personal media archiver, backup youtube videos to pc, instagram backup tool, save my tiktok videos, high quality media backup, secure content archiving, 4k 60fps backup" />
+  <meta name="author" content="MediaGrab" />
+  
+  <!-- Indexing Directives (Tells Google to rank the page) -->
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow" />
+  <link rel="canonical" href="https://mediagrab.org/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://mediagrab.org/">
+  <meta property="og:title" content="MediaGrab — Download Any Media in 4K">
+  <meta property="og:description" content="Download videos and media from YouTube, Instagram, Twitter, TikTok, and 1000+ sites in the highest quality up to 4K 60fps.">
+  <meta property="og:image" content="https://mediagrab.org/social-preview.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://mediagrab.org/">
+  <meta property="twitter:title" content="MediaGrab — Download Any Media in 4K">
+  <meta property="twitter:description" content="Download videos and media from YouTube, Instagram, Twitter, TikTok, and 1000+ sites in the highest quality up to 4K 60fps.">
+  <meta property="twitter:image" content="https://mediagrab.org/social-preview.png">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- Background grain overlay -->
+  <div class="grain-overlay" aria-hidden="true"></div>
+
+  <!-- Header -->
+  <header class="header" id="header">
+    <div class="header-inner">
+      <a href="/" class="logo" id="logo">
+        <span class="logo-icon">▼</span>
+        <span class="logo-text">MediaGrab</span>
+      </a>
+      <nav class="header-nav">
+        <span class="badge clay-badge">4K Ready</span>
+        <span class="badge clay-badge">60fps</span>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main" id="main-content">
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero-section">
+      <h1 class="hero-title">
+        Backup Your <span class="hero-highlight">Social Media</span><br />
+        in Stunning Quality
+      </h1>
+      <p class="hero-subtitle">
+        YouTube · Instagram · Twitter · TikTok · Reddit · and 1000+ more
+      </p>
+
+      <!-- URL Input Card -->
+      <div class="clay-card input-card" id="input-card">
+        <div class="input-wrapper">
+          <div class="input-icon" id="platform-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </div>
+          <input
+            type="url"
+            id="url-input"
+            class="url-input"
+            placeholder="Paste a link to your personal media here..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="clay-btn paste-btn" id="paste-btn" title="Paste from clipboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="8" height="4" x="8" y="2" rx="1" ry="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+            </svg>
+          </button>
+          <button class="clay-btn fetch-btn" id="fetch-btn">
+            <span class="btn-text">Fetch</span>
+            <span class="btn-loader" hidden>
+              <span class="spinner"></span>
+            </span>
+          </button>
+        </div>
+        <div class="supported-platforms">
+          <span class="platform-tag">YouTube</span>
+          <span class="platform-tag">Instagram</span>
+          <span class="platform-tag">Twitter/X</span>
+          <span class="platform-tag">TikTok</span>
+          <span class="platform-tag">Reddit</span>
+          <span class="platform-tag">Facebook</span>
+          <span class="platform-tag">+1000 more</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Media Preview Section (hidden initially) -->
+    <section class="preview-section" id="preview-section" hidden>
+      <div class="clay-card preview-card" id="preview-card">
+        <div class="preview-header">
+          <div class="preview-thumbnail-wrap">
+            <img src="" alt="Media thumbnail" id="preview-thumbnail" class="preview-thumbnail" />
+            <span class="preview-duration" id="preview-duration"></span>
+            <span class="preview-platform-badge" id="preview-platform"></span>
+          </div>
+          <div class="preview-info">
+            <h2 class="preview-title" id="preview-title"></h2>
+            <p class="preview-uploader" id="preview-uploader"></p>
+          </div>
+        </div>
+
+        <!-- Format Selection -->
+        <div class="format-section" id="format-section">
+          <h3 class="section-label">Select Quality</h3>
+          <div class="format-grid" id="format-grid">
+            <!-- Format options will be injected here -->
+          </div>
+        </div>
+
+        <!-- Download Button -->
+        <div class="download-section">
+          <button class="clay-btn download-btn" id="download-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
+            </svg>
+            <span>Download</span>
+          </button>
+        </div>
+
+        <!-- Progress Bar (hidden initially) -->
+        <div class="progress-section" id="progress-section" hidden>
+          <div class="progress-bar-track clay-inset">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+          <div class="progress-details">
+            <span class="progress-percent" id="progress-percent">0%</span>
+            <span class="progress-info" id="progress-info">Starting...</span>
+          </div>
+        </div>
+
+        <!-- Download Complete (hidden initially) -->
+        <div class="complete-section" id="complete-section" hidden>
+          <div class="complete-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <p class="complete-text">Download Complete!</p>
+          <button class="clay-btn save-btn" id="save-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
+            </svg>
+            <span>Save File</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download History Section -->
+    <section class="history-section" id="history-section" hidden>
+      <div class="section-header">
+        <h2 class="section-title">Recent Downloads</h2>
+        <button class="clay-btn clay-btn-sm" id="clear-history-btn">Clear</button>
+      </div>
+      <div class="history-list" id="history-list">
+        <!-- History items injected here -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer" id="footer">
+    <p>MediaGrab — A utility for backing up your personal creations. Respect copyright laws.</p>
+    <p style="margin-top: 8px;">
+      <a href="/privacy.html" style="color: var(--text-muted); text-decoration: none; font-size: var(--font-size-xs); transition: color 0.2s ease;">Privacy Policy</a>
+    </p>
+  </footer>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
