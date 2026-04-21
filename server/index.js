@@ -20,9 +20,17 @@ app.use(express.json());
 // API Routes
 app.use('/api', downloadRoutes);
 
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+// Any other route should serve the frontend application
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 // Start server
