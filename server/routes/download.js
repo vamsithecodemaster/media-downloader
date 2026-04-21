@@ -41,7 +41,7 @@ router.post('/info', async (req, res) => {
   } catch (error) {
     console.error('Error fetching media info:', error.message);
     res.status(500).json({
-      error: 'Failed to fetch media info',
+      error: error.message || 'Failed to fetch media info',
       details: error.message
     });
   }
@@ -114,7 +114,7 @@ router.post('/download', async (req, res) => {
   } catch (error) {
     console.error('Error starting download:', error.message);
     res.status(500).json({
-      error: 'Failed to start download',
+      error: error.message || 'Failed to start download',
       details: error.message
     });
   }
