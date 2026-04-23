@@ -69,77 +69,131 @@ export function getMediaInfo(url) {
   });
 }
 
-/**
- * Extract and organize available formats from yt-dlp info
- */
 function extractFormats(info) {
   const formats = [];
-  const seen = new Set();
+  
+  // Add global "Best" explicitly built for iPhone (avc/h264 format)
+  formats.push({
+    id: 'bestvideo[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]+bestaudio[ext=m4a]/best[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]/best[ext=mp4]/best',
+    label: 'Best for iPhone (MP4)',
+    quality: 'best_iphone',
+    ext: 'mp4',
+    type: 'video+audio',
+    filesize: null
+  });
 
   if (!info.formats || !Array.isArray(info.formats)) {
-    // If no detailed formats, return a default best option
-    return [{
+    formats.unshift({
       id: 'best',
-      label: 'Best Quality',
+      label: 'Best Available',
       quality: 'best',
       ext: info.ext || 'mp4',
       type: 'video+audio',
       filesize: null
-    }];
+    });
+    return formats;
   }
 
-  // Video formats - find unique resolutions
-  const videoFormats = info.formats
-    .filter(f => f.vcodec && f.vcodec !== 'none' && f.height)
-    .sort((a, b) => (b.height || 0) - (a.height || 0));
-
-  const resolutions = [
-    { height: 2160, label: '4K', fps: [60, 30] },
-    { height: 1440, label: '2K', fps: [60, 30] },
-    { height: 1080, label: '1080p', fps: [60, 30] },
-    { height: 720, label: '720p', fps: [60, 30] },
-    { height: 480, label: '480p', fps: [30] },
-    { height: 360, label: '360p', fps: [30] },
-  ];
-
-  for (const res of resolutions) {
-    for (const fps of res.fps) {
-      const match = videoFormats.find(f =>
-        f.height === res.height &&
-        (fps === 60 ? (f.fps >= 50) : (f.fps < 50 || !f.fps))
-      );
-      if (match) {
-        const key = `${res.height}p${fps === 60 ? '60' : ''}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          formats.push({
-            id: `bestvideo[height=${res.height}]${fps === 60 ? '[fps>=50]' : '[fps<50]'}+bestaudio/best[height=${res.height}]`,
-            label: `${res.label}${fps === 60 ? ' 60fps' : ''}`,
-            quality: key,
-            ext: 'mp4',
-            type: 'video+audio',
-            filesize: match.filesize || match.filesize_approx || null,
-            height: res.height,
-            fps: fps
-          });
-        }
-      }
+  // Pre-process formats to extract width/height if necessary
+  const processedFormats = info.formats.map(f => {
+    let w = f.width || 0;
+    let h = f.height || 0;
+    if (!w && !h && f.resolution && typeof f.resolution === 'string' && f.resolution.includes('x')) {
+      const parts = f.resolution.split('x');
+      w = parseInt(parts[0], 10) || 0;
+      h = parseInt(parts[1], 10) || 0;
     }
+    return { ...f, width: w, height: h };
+  });
+
+  const videoFormats = processedFormats
+    .filter(f => f.vcodec && f.vcodec !== 'none' && (f.height || f.width))
+    .sort((a, b) => {
+      const aSize = (a.height || 0) * (a.width || 0);
+      const bSize = (b.height || 0) * (b.width || 0);
+      if (bSize !== aSize) return bSize - aSize;
+      return (b.fps || 0) - (a.fps || 0);
+    });
+
+  const getResLabel = (width, height, formatNote) => {
+    const short = Math.min(width || 0, height || 0);
+    const long = Math.max(width || 0, height || 0);
+
+    if (short >= 2160 || long >= 3800) return { r: 2160, l: '4K' };
+    if (short >= 1440 || long >= 2500) return { r: 1440, l: '2K' };
+    if (short >= 1080 || long >= 1900) return { r: 1080, l: '1080p FHD' };
+    if (short >= 720 || long >= 1200) return { r: 720, l: '720p HD' };
+    if (short >= 480 || long >= 800) return { r: 480, l: '480p SD' };
+    if (short >= 360 || long >= 600) return { r: 360, l: '360p SD' };
+    if (formatNote && typeof formatNote === 'string') return { r: short || long || 0, l: formatNote };
+    return { r: short || long || 0, l: `${short || long}p` };
+  };
+
+  const formatGroups = new Map();
+
+  for (const f of videoFormats) {
+    const res = getResLabel(f.width, f.height, f.format_note);
+    // Ignore absurdly small resolutions natively
+    if (res.r === 0 && (!f.format_note || f.format_note.includes('audio'))) continue;
+    
+    const is60fps = f.fps && f.fps >= 50;
+    const isAVC = f.vcodec && (f.vcodec.includes('avc') || f.vcodec.includes('h264') || f.vcodec.includes('hev') || f.vcodec.includes('h265'));
+    const isMP4 = f.ext === 'mp4';
+    
+    const key = `${res.r}-${is60fps ? '60' : '30'}`;
+    
+    if (!formatGroups.has(key)) {
+      formatGroups.set(key, []);
+    }
+    formatGroups.get(key).push({ ...f, isAVC, isMP4, resLabel: res.l, is60fps });
   }
 
-  // Always add a "Best Available" option at the top
+  // Iterate over detected resolution groups
+  for (const [key, group] of formatGroups) {
+    group.sort((a, b) => {
+      if (a.isAVC && !b.isAVC) return -1;
+      if (!a.isAVC && b.isAVC) return 1;
+      if (a.isMP4 && !b.isMP4) return -1;
+      if (!a.isMP4 && b.isMP4) return 1;
+      return (b.tbr || 0) - (a.tbr || 0); // fallback to highest bitrate
+    });
+
+    const bestForRes = group[0];
+    const fpsStr = bestForRes.is60fps ? ' 60fps' : '';
+    const label = `${bestForRes.resLabel}${fpsStr}${bestForRes.isAVC ? ' (iPhone)' : ''}`;
+    
+    let formatId = bestForRes.format_id;
+    // If format doesn't natively include audio, bundle best audio with it
+    if (bestForRes.acodec === 'none' || !bestForRes.acodec) {
+      // Prioritize m4a audio to naturally align with mp4 container
+      formatId = `${bestForRes.format_id}+bestaudio[ext=m4a]/bestaudio/best`;
+    }
+
+    formats.push({
+      id: formatId,
+      label: label,
+      quality: key,
+      ext: 'mp4',
+      type: 'video+audio',
+      filesize: bestForRes.filesize || bestForRes.filesize_approx || null,
+      height: bestForRes.height,
+      fps: bestForRes.fps
+    });
+  }
+
+  // Add the general "Best Available" explicit bypass
   formats.unshift({
     id: 'bestvideo+bestaudio/best',
-    label: 'Best Available',
+    label: 'Best Available (Original)',
     quality: 'best',
     ext: 'mp4',
     type: 'video+audio',
     filesize: null
   });
 
-  // Add audio-only options
+  // Add audio-only option
   formats.push({
-    id: 'bestaudio',
+    id: 'bestaudio[ext=m4a]/bestaudio/best',
     label: 'Audio Only (Best)',
     quality: 'audio',
     ext: 'mp3',
