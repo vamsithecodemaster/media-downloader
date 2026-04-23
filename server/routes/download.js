@@ -289,4 +289,36 @@ setInterval(() => {
   }
 }, 15 * 60 * 1000); // Every 15 minutes
 
+/**
+ * GET /api/thumbnail
+ * Proxy the thumbnail to bypass CORS/hotlinking restrictions from Instagram/Twitter
+ */
+router.get('/thumbnail', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('URL required');
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,*/*;q=0.8'
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).send('Failed to proxy thumbnail');
+    }
+
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=604800'); // Cache for a week
+    
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (error) {
+    console.error('Thumbnail proxy error:', error.message);
+    res.status(500).send('Error fetching thumbnail');
+  }
+});
+
 export default router;

@@ -152,7 +152,12 @@ async function handleFetch() {
 // Render Preview & Formats
 function renderPreview(info) {
   elements.previewSection.hidden = false;
-  elements.previewThumbnail.src = info.thumbnail || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23666" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+  
+  const thumbUrl = info.thumbnail 
+    ? `${API_URL}/thumbnail?url=${encodeURIComponent(info.thumbnail)}`
+    : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24"><path fill="%23666" d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>';
+  
+  elements.previewThumbnail.src = thumbUrl;
   elements.previewDuration.textContent = formatDuration(info.duration);
   elements.previewPlatform.textContent = info.platform;
   elements.previewTitle.textContent = info.title;
@@ -351,8 +356,10 @@ function renderHistory(history) {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
 
+    const proxiedThumb = item.thumbnail ? `${API_URL}/thumbnail?url=${encodeURIComponent(item.thumbnail)}` : '';
+
     el.innerHTML = `
-      <img src="${item.thumbnail}" class="history-thumb" alt="" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 fill=%22%23222%22><rect width=%22100%25%22 height=%22100%25%22/></svg>'">
+      <img src="${proxiedThumb}" class="history-thumb" alt="" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 fill=%22%23222%22><rect width=%22100%25%22 height=%22100%25%22/></svg>'">
       <div class="history-info">
         <div class="history-title" title="${item.title}">${item.title}</div>
         <div class="history-meta">${item.platform} • Downloaded ${date}</div>
