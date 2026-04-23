@@ -352,7 +352,7 @@ function renderHistory(history) {
     });
 
     el.innerHTML = `
-      <img src="${item.thumbnail}" class="history-thumb" alt="" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 fill=%22%23222%22><rect width=%22100%25%22 height=%22100%25%22/></svg>'">
+      <img src="${item.thumbnail}" class="history-thumb" alt="" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22 fill=%22%23222%22><rect width=%22100%25%22 height=%22100%25%22/></svg>'">
       <div class="history-info">
         <div class="history-title" title="${item.title}">${item.title}</div>
         <div class="history-meta">${item.platform} • Downloaded ${date}</div>
