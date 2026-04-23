@@ -72,11 +72,11 @@ export function getMediaInfo(url) {
 function extractFormats(info) {
   const formats = [];
   
-  // Add global "Best" explicitly built for iPhone (avc/h264 format)
+  // Add global "Best" explicitly built for high compatibility (avc/h264 format)
   formats.push({
     id: 'bestvideo[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]+bestaudio[ext=m4a]/best[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]/best[ext=mp4]/best',
-    label: 'Best for iPhone (MP4)',
-    quality: 'best_iphone',
+    label: 'Best Compatible (MP4)',
+    quality: 'best_compatible',
     ext: 'mp4',
     type: 'video+audio',
     filesize: null
@@ -160,7 +160,7 @@ function extractFormats(info) {
 
     const bestForRes = group[0];
     const fpsStr = bestForRes.is60fps ? ' 60fps' : '';
-    const label = `${bestForRes.resLabel}${fpsStr}${bestForRes.isAVC ? ' (iPhone)' : ''}`;
+    const label = `${bestForRes.resLabel}${fpsStr}`;
     
     let formatId = bestForRes.format_id;
     // If format doesn't natively include audio, bundle best audio with it
