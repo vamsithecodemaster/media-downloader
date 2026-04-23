@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 import { getMediaInfo, downloadMedia } from '../utils/ytdlp.js';
 
 const router = Router();
@@ -293,31 +294,37 @@ setInterval(() => {
  * GET /api/thumbnail
  * Proxy the thumbnail to bypass CORS/hotlinking restrictions from Instagram/Twitter
  */
-router.get('/thumbnail', async (req, res) => {
+router.get('/thumbnail', (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL required');
   
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,*/*;q=0.8'
-      }
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).send('Failed to proxy thumbnail');
+    const args = ['-s', '-L'];
+    
+    // Inject cookies if available (crucial for Instagram thumbnails)
+    const cookiesPath = path.join(process.cwd(), 'cookies.txt');
+    if (fs.existsSync(cookiesPath)) {
+      args.push('--cookie', cookiesPath);
     }
 
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=604800'); // Cache for a week
+    // Pretend to be a real browser
+    args.push('-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    args.push('-H', 'Accept: image/avif,image/webp,*/*');
+    args.push(url);
+
+    res.setHeader('Content-Type', 'image/jpeg'); // Browser will auto-sniff if it's webp/png
+    res.setHeader('Cache-Control', 'public, max-age=604800');
     
-    const arrayBuffer = await response.arrayBuffer();
-    res.send(Buffer.from(arrayBuffer));
+    const curlProcess = spawn('curl', args);
+    curlProcess.stdout.pipe(res);
+
+    curlProcess.on('error', (err) => {
+      console.error('Thumbnail curl proxy error:', err.message);
+      if (!res.headersSent) res.status(500).send('Error');
+    });
   } catch (error) {
     console.error('Thumbnail proxy error:', error.message);
-    res.status(500).send('Error fetching thumbnail');
+    if (!res.headersSent) res.status(500).send('Error');
   }
 });
 
