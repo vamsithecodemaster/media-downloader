@@ -21,9 +21,10 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
+          passphrase: ${{ secrets.VPS_PASSPHRASE }}
           script: |
             # Update this path to where your project is located on the VPS!
-            cd /path/to/your/media-downloader
+            cd /opt/media-downloader
             
             # Pull the latest changes from GitHub
             git reset --hard HEAD
