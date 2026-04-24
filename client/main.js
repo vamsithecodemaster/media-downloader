@@ -25,7 +25,6 @@ const elements = {
   progressInfo: document.getElementById('progress-info'),
   
   completeSection: document.getElementById('complete-section'),
-  saveBtn: document.getElementById('save-btn'),
   
   historySection: document.getElementById('history-section'),
   historyList: document.getElementById('history-list'),
@@ -80,7 +79,6 @@ function setupEventListeners() {
   });
 
   elements.downloadBtn.addEventListener('click', handleDownload);
-  elements.saveBtn.addEventListener('click', handleSaveFile);
   elements.clearHistoryBtn.addEventListener('click', clearHistory);
 }
 
@@ -283,6 +281,9 @@ function connectToSSE(downloadId, mediaInfo) {
       elements.completeSection.hidden = false;
       elements.downloadBtn.disabled = false;
       
+      // Auto-trigger the file download immediately
+      window.location.href = `${API_URL}/file/${downloadId}`;
+      
       // Save to history
       saveToHistory({
         id: downloadId,
@@ -292,7 +293,7 @@ function connectToSSE(downloadId, mediaInfo) {
         timestamp: Date.now()
       });
       
-      showToast('Download complete!', 'success');
+      showToast('Download complete! Your file is saving...', 'success');
     }
   };
 
