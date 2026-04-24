@@ -906,29 +906,42 @@ body {
     padding: var(--space-md);
   }
 
+  /* Stack input row on top, fetch button full-width below */
   .input-wrapper {
     flex-wrap: wrap;
     padding: var(--space-xs);
+    gap: var(--space-xs);
   }
 
+  /* Hide the link icon on mobile to save space */
   .input-icon {
     display: none;
   }
 
+  /* URL input takes most of the top row */
   .url-input {
-    flex-basis: 100%;
+    flex: 1;
+    flex-basis: 0;
+    min-width: 0;
     padding: var(--space-sm) var(--space-sm);
     font-size: var(--font-size-sm);
+    order: 1;
   }
 
+  /* Paste button stays inline with the URL input */
   .paste-btn {
-    order: -1;
-    margin-left: auto;
+    order: 2;
+    flex-shrink: 0;
+    padding: var(--space-sm);
   }
 
+  /* Fetch button drops to its own full-width row below */
   .fetch-btn {
+    order: 3;
     width: 100%;
+    flex-basis: 100%;
     padding: var(--space-md);
+    margin-top: var(--space-xs);
   }
 
   .preview-header {
