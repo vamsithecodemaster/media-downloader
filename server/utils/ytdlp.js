@@ -73,8 +73,9 @@ function extractFormats(info) {
   const formats = [];
   
   // Add global "Best" explicitly built for high compatibility (avc/h264 format)
+  // Note: pipe | inside ~= is a yt-dlp selector separator, so we chain with / instead
   formats.push({
-    id: 'bestvideo[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]+bestaudio[ext=m4a]/best[ext=mp4][vcodec~=^avc|^h264|^hev|^h265]/best[ext=mp4]/best',
+    id: 'bestvideo[vcodec~=avc][ext=mp4]+bestaudio[ext=m4a]/bestvideo[vcodec~=hev][ext=mp4]+bestaudio[ext=m4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
     label: 'Best Compatible (MP4)',
     quality: 'best_compatible',
     ext: 'mp4',
@@ -137,7 +138,7 @@ function extractFormats(info) {
     if (res.r === 0 && (!f.format_note || f.format_note.includes('audio'))) continue;
     
     const is60fps = f.fps && f.fps >= 50;
-    const isAVC = f.vcodec && (f.vcodec.includes('avc') || f.vcodec.includes('h264') || f.vcodec.includes('hev') || f.vcodec.includes('h265'));
+    const isAVC = f.vcodec && (f.vcodec.includes('avc') || f.vcodec.includes('h264') || f.vcodec.includes('hev') || f.vcodec.includes('h265') || f.vcodec.includes('hevc'));
     const isMP4 = f.ext === 'mp4';
     
     const key = `${res.r}-${is60fps ? '60' : '30'}`;
