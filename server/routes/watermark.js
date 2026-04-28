@@ -276,30 +276,14 @@ async function processImageWithAI(job, regions) {
     throw new Error(`IOPaint API error (${response.status}): ${errorText}`);
   }
 
-  // IOPaint returns the result as base64 encoded image in JSON
-  const resultData = await response.json();
+  // IOPaint returns raw binary image data (Content-Type: image/png)
+  const resultArrayBuffer = await response.arrayBuffer();
+  const resultBuffer = Buffer.from(resultArrayBuffer);
 
   job.progress = 90;
+  console.log(`[Watermark] Got result from IOPaint: ${resultBuffer.length} bytes`);
 
-  // The response is a base64 encoded image string
-  let resultBase64;
-  if (typeof resultData === 'string') {
-    resultBase64 = resultData;
-  } else if (resultData.image) {
-    resultBase64 = resultData.image;
-  } else {
-    // Try to use the response directly
-    resultBase64 = JSON.stringify(resultData);
-  }
-
-  // Remove data URI prefix if present
-  if (resultBase64.startsWith('data:')) {
-    resultBase64 = resultBase64.split(',')[1];
-  }
-
-  // Decode and save
-  const resultBuffer = Buffer.from(resultBase64, 'base64');
-
+  // Save in the desired output format
   if (outExt === '.png') {
     await sharp(resultBuffer).png().toFile(outPath);
   } else if (outExt === '.webp') {
