@@ -12,6 +12,9 @@ const jobs = new Map();
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 const PROCESSED_DIR = path.join(process.cwd(), 'processed');
 
+// IOPaint (LaMa AI model) server URL
+const IOPAINT_URL = process.env.IOPAINT_URL || 'http://127.0.0.1:8090';
+
 [UPLOADS_DIR, PROCESSED_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -30,9 +33,10 @@ const upload = multer({
   }
 });
 
-/**
- * POST /upload — Upload file and generate a small thumbnail for instant preview
- */
+// ============================================================
+// UPLOAD
+// ============================================================
+
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -45,7 +49,6 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     if (!isVideo) {
       const meta = await sharp(file.path).metadata();
       w = meta.width; h = meta.height;
-      // Generate a small thumbnail for instant preview (resized to max 1200px wide)
       thumbnailPath = path.join(UPLOADS_DIR, `${jobId}_thumb.jpg`);
       await sharp(file.path)
         .resize({ width: 1200, withoutEnlargement: true })
@@ -56,13 +59,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const d = await getVideoDimensions(file.path);
         w = d.width; h = d.height;
       } catch {}
-      // Generate video thumbnail using ffmpeg
       thumbnailPath = path.join(UPLOADS_DIR, `${jobId}_thumb.jpg`);
       try {
         await extractVideoThumbnail(file.path, thumbnailPath);
-      } catch {
-        thumbnailPath = null;
-      }
+      } catch { thumbnailPath = null; }
     }
 
     jobs.set(jobId, {
@@ -84,9 +84,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-/**
- * GET /thumb/:id — Serve the small thumbnail (fast loading)
- */
+// ============================================================
+// PREVIEW / THUMBNAIL
+// ============================================================
+
 router.get('/thumb/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job || !job.thumbnailPath || !fs.existsSync(job.thumbnailPath))
@@ -96,9 +97,6 @@ router.get('/thumb/:id', (req, res) => {
   fs.createReadStream(job.thumbnailPath).pipe(res);
 });
 
-/**
- * GET /preview/:id — Serve the full-res original file
- */
 router.get('/preview/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job || !fs.existsSync(job.originalPath))
@@ -110,9 +108,10 @@ router.get('/preview/:id', (req, res) => {
   fs.createReadStream(job.originalPath).pipe(res);
 });
 
-/**
- * POST /process — Start watermark removal
- */
+// ============================================================
+// PROCESS — AI-powered watermark removal
+// ============================================================
+
 router.post('/process', async (req, res) => {
   try {
     const { jobId, regions, method } = req.body;
@@ -125,10 +124,12 @@ router.post('/process', async (req, res) => {
     job.status = 'processing'; job.progress = 0; job.error = null;
     res.json({ success: true, jobId });
 
-    // Process in background
     try {
-      if (job.isVideo) await processVideo(job, regions);
-      else await processImage(job, regions, method || 'fill');
+      if (job.isVideo) {
+        await processVideo(job, regions);
+      } else {
+        await processImageWithAI(job, regions);
+      }
       job.status = 'completed'; job.progress = 100;
     } catch (err) {
       console.error('Processing error:', err);
@@ -139,9 +140,10 @@ router.post('/process', async (req, res) => {
   }
 });
 
-/**
- * GET /status/:id — SSE progress stream
- */
+// ============================================================
+// STATUS — SSE progress stream
+// ============================================================
+
 router.get('/status/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -161,9 +163,10 @@ router.get('/status/:id', (req, res) => {
   req.on('close', () => clearInterval(iv));
 });
 
-/**
- * GET /download/:id — Download processed file
- */
+// ============================================================
+// DOWNLOAD
+// ============================================================
+
 router.get('/download/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Not found' });
@@ -180,109 +183,134 @@ router.get('/download/:id', (req, res) => {
 });
 
 // ============================================================
-// IMAGE PROCESSING — Uses sharp's compositing pipeline
+// IMAGE PROCESSING — Uses IOPaint's LaMa AI model
 // ============================================================
 
-async function processImage(job, regions, method) {
+async function processImageWithAI(job, regions) {
   const inputPath = job.originalPath;
   const ext = path.extname(inputPath).toLowerCase();
-  const outExt = ['.png', '.webp', '.tiff'].includes(ext) ? ext : '.jpg';
+  const outExt = ['.png', '.webp'].includes(ext) ? ext : '.jpg';
   const outPath = path.join(PROCESSED_DIR, `${job.id}_out${outExt}`);
+
   job.progress = 5;
 
+  // Read the original image as PNG buffer (IOPaint needs consistent format)
   const meta = await sharp(inputPath).metadata();
   const W = meta.width, H = meta.height;
 
-  // Start with the original image
-  let pipeline = sharp(inputPath);
-  job.progress = 10;
+  // Convert image to PNG base64 for IOPaint API
+  const imgPngBuffer = await sharp(inputPath).png().toBuffer();
+  const imageBase64 = imgPngBuffer.toString('base64');
 
-  // Build composite overlays — one blurred/filled patch per region
-  const composites = [];
+  job.progress = 15;
 
-  for (let i = 0; i < regions.length; i++) {
-    const r = regions[i];
-    // Convert ratio coordinates to pixel coordinates
-    let rx = Math.max(0, Math.round(r.x * W));
-    let ry = Math.max(0, Math.round(r.y * H));
-    let rw = Math.round(r.w * W);
-    let rh = Math.round(r.h * H);
-
-    // Clamp to image bounds
-    if (rx + rw > W) rw = W - rx;
-    if (ry + rh > H) rh = H - ry;
-    if (rw <= 0 || rh <= 0) continue;
-
-    // Extract the region with extra padding for context
-    const pad = Math.max(20, Math.round(Math.min(rw, rh) * 0.4));
-    const exLeft = Math.max(0, rx - pad);
-    const exTop = Math.max(0, ry - pad);
-    const exRight = Math.min(W, rx + rw + pad);
-    const exBottom = Math.min(H, ry + rh + pad);
-    const exW = exRight - exLeft;
-    const exH = exBottom - exTop;
-
-    if (method === 'blur') {
-      // Heavy gaussian blur on the exact region
-      const blurRadius = Math.max(15, Math.round(Math.min(rw, rh) * 0.25));
-      // Ensure sigma is at least 1
-      const sigma = Math.max(1, blurRadius);
-
-      const blurredPatch = await sharp(inputPath)
-        .extract({ left: rx, top: ry, width: rw, height: rh })
-        .blur(sigma)
-        .toBuffer();
-
-      composites.push({
-        input: blurredPatch,
-        left: rx,
-        top: ry
-      });
-    } else {
-      // Content-fill: Extract a larger area, blur it heavily, then
-      // use the center (where the watermark was) as a replacement.
-      // This creates a smooth fill from surrounding context.
-      const blurSigma = Math.max(20, Math.round(Math.min(rw, rh) * 0.5));
-
-      const filledPatch = await sharp(inputPath)
-        .extract({ left: exLeft, top: exTop, width: exW, height: exH })
-        .blur(Math.max(1, blurSigma))
-        .toBuffer();
-
-      // Now extract just the watermark-sized portion from the blurred extended region
-      const innerLeft = rx - exLeft;
-      const innerTop = ry - exTop;
-
-      const croppedFill = await sharp(filledPatch)
-        .extract({ left: innerLeft, top: innerTop, width: rw, height: rh })
-        .toBuffer();
-
-      composites.push({
-        input: croppedFill,
-        left: rx,
-        top: ry
-      });
+  // Create a mask image: black background (keep), white areas (remove/inpaint)
+  // The mask must be the same size as the image
+  const maskCanvas = sharp({
+    create: {
+      width: W,
+      height: H,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 } // Black = keep
     }
+  });
 
-    job.progress = 10 + Math.round(((i + 1) / regions.length) * 70);
-  }
+  // Draw white rectangles for each watermark region
+  const whiteRects = regions.map(r => {
+    const rx = Math.max(0, Math.round(r.x * W));
+    const ry = Math.max(0, Math.round(r.y * H));
+    const rw = Math.min(W - rx, Math.max(1, Math.round(r.w * W)));
+    const rh = Math.min(H - ry, Math.max(1, Math.round(r.h * H)));
+    return { rx, ry, rw, rh };
+  }).filter(r => r.rw > 0 && r.rh > 0);
 
-  if (composites.length === 0) {
+  if (whiteRects.length === 0) {
     throw new Error('No valid regions to process');
   }
 
-  job.progress = 85;
+  // Build composite overlays for the mask (white rectangles on black)
+  const whiteOverlays = whiteRects.map(r => ({
+    input: Buffer.from(
+      `<svg width="${r.rw}" height="${r.rh}">
+        <rect x="0" y="0" width="${r.rw}" height="${r.rh}" fill="white"/>
+      </svg>`
+    ),
+    left: r.rx,
+    top: r.ry
+  }));
 
-  // Composite all patches onto the original
-  pipeline = pipeline.composite(composites);
+  const maskPngBuffer = await maskCanvas
+    .composite(whiteOverlays)
+    .png()
+    .toBuffer();
 
-  // Output in appropriate format
-  if (outExt === '.png') await pipeline.png().toFile(outPath);
-  else if (outExt === '.webp') await pipeline.webp({ quality: 95 }).toFile(outPath);
-  else await pipeline.jpeg({ quality: 95 }).toFile(outPath);
+  const maskBase64 = maskPngBuffer.toString('base64');
+
+  job.progress = 25;
+  console.log(`[Watermark] Sending to IOPaint: image=${W}x${H}, ${whiteRects.length} regions`);
+
+  // Call IOPaint API with LaMa model
+  const requestBody = JSON.stringify({
+    image: imageBase64,
+    mask: maskBase64,
+    hd_strategy: 'Resize',
+    hd_strategy_resize_limit: 2048,
+    hd_strategy_crop_trigger_size: 800,
+    hd_strategy_crop_margin: 128
+  });
+
+  job.progress = 30;
+
+  const response = await fetch(`${IOPAINT_URL}/api/v1/inpaint`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: requestBody
+  });
+
+  job.progress = 80;
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`IOPaint API error (${response.status}): ${errorText}`);
+  }
+
+  // IOPaint returns the result as base64 encoded image in JSON
+  const resultData = await response.json();
+
+  job.progress = 90;
+
+  // The response is a base64 encoded image string
+  let resultBase64;
+  if (typeof resultData === 'string') {
+    resultBase64 = resultData;
+  } else if (resultData.image) {
+    resultBase64 = resultData.image;
+  } else {
+    // Try to use the response directly
+    resultBase64 = JSON.stringify(resultData);
+  }
+
+  // Remove data URI prefix if present
+  if (resultBase64.startsWith('data:')) {
+    resultBase64 = resultBase64.split(',')[1];
+  }
+
+  // Decode and save
+  const resultBuffer = Buffer.from(resultBase64, 'base64');
+
+  if (outExt === '.png') {
+    await sharp(resultBuffer).png().toFile(outPath);
+  } else if (outExt === '.webp') {
+    await sharp(resultBuffer).webp({ quality: 95 }).toFile(outPath);
+  } else {
+    await sharp(resultBuffer).jpeg({ quality: 95 }).toFile(outPath);
+  }
 
   job.progress = 100;
   job.processedPath = outPath;
+  console.log(`[Watermark] Done: ${outPath}`);
 }
 
 // ============================================================
@@ -315,8 +343,6 @@ function processVideo(job, regions) {
       '-movflags', '+faststart',
       '-y', outPath
     ];
-
-    console.log('FFmpeg command:', 'ffmpeg', args.join(' '));
 
     const proc = spawn('ffmpeg', args);
     let stderr = '';
@@ -369,14 +395,8 @@ function getVideoDimensions(filePath) {
 
 function extractVideoThumbnail(videoPath, outPath) {
   return new Promise((resolve, reject) => {
-    const args = [
-      '-i', videoPath,
-      '-ss', '00:00:01',
-      '-vframes', '1',
-      '-vf', 'scale=1200:-1',
-      '-q:v', '3',
-      '-y', outPath
-    ];
+    const args = ['-i', videoPath, '-ss', '00:00:01', '-vframes', '1',
+      '-vf', 'scale=1200:-1', '-q:v', '3', '-y', outPath];
     const proc = spawn('ffmpeg', args);
     proc.on('close', code => {
       if (code === 0 && fs.existsSync(outPath)) resolve(outPath);

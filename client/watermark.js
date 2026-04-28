@@ -28,8 +28,6 @@ const els = {
   downloadBtn: document.getElementById('download-btn'),
   newFileBtn: document.getElementById('new-file-btn'),
   toastContainer: document.getElementById('toast-container'),
-  methodFill: document.getElementById('method-fill'),
-  methodBlur: document.getElementById('method-blur'),
   canvasLoader: document.getElementById('canvas-loader'),
 };
 
@@ -39,7 +37,7 @@ let regions = [];
 let isDrawing = false;
 let drawStart = null;
 let activeRect = null;
-let selectedMethod = 'fill';
+
 let mediaImage = null;
 let originalWidth = 0;
 let originalHeight = 0;
@@ -388,14 +386,6 @@ function setupToolbar() {
     regions = [];
     updateRegionUI();
   });
-
-  [els.methodFill, els.methodBlur].forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.wm-method-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedMethod = btn.dataset.method;
-    });
-  });
 }
 
 // ============================================================
@@ -420,8 +410,7 @@ async function handleProcess() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         jobId: currentJob.jobId,
-        regions,
-        method: selectedMethod
+        regions
       })
     });
 

@@ -151,42 +151,20 @@
   gap: var(--space-xs);
 }
 
-.wm-method-toggle {
+/* AI Powered badge */
+.wm-ai-badge {
   display: flex;
-  gap: 2px;
-  background: var(--bg-primary);
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
   border-radius: var(--radius-sm);
-  padding: 2px;
-  box-shadow: var(--clay-shadow-inset);
-}
-
-.wm-method-btn {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.1), rgba(180, 120, 255, 0.1));
+  border: 1px solid rgba(140, 180, 255, 0.2);
+  color: rgba(160, 200, 255, 0.9);
   font-size: 11px;
-  padding: 6px 12px;
-  border-radius: calc(var(--radius-sm) - 2px);
-  gap: 4px;
-  box-shadow: none;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  transition: all var(--transition-fast);
-}
-
-.wm-method-btn:hover {
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: none;
-  transform: none;
-}
-
-.wm-method-btn.active {
-  background: var(--bg-surface);
-  color: var(--text-accent);
-  box-shadow: var(--clay-shadow-sm);
-}
-
-.wm-method-btn.active:hover {
-  transform: none;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 /* ---------- Canvas ---------- */
