@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watermark Remover — MediaGrab</title>
+  <meta name="description" content="Remove watermarks from photos and videos for free. Upload, select the watermark area, and download clean media instantly.">
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://mediagrab.in/watermark.html" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2548975070918981" crossorigin="anonymous"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/watermark.css" />
+</head>
+<body>
+  <div class="grain-overlay" aria-hidden="true"></div>
+
+  <header class="header" id="header">
+    <div class="header-inner">
+      <a href="/" class="logo" id="logo">
+        <span class="logo-icon">▼</span>
+        <span class="logo-text">MediaGrab</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="clay-btn clay-btn-sm nav-link" id="nav-downloader">Downloader</a>
+        <a href="/watermark.html" class="clay-btn clay-btn-sm nav-link active" id="nav-watermark">Watermark Remover</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main" id="main-content">
+    <section class="hero" id="hero-section">
+      <h1 class="hero-title">
+        Remove <span class="hero-highlight">Watermarks</span><br />
+        from Photos & Videos
+      </h1>
+      <p class="hero-subtitle">
+        Upload your media, select the watermark area, and get a clean version instantly
+      </p>
+    </section>
+
+    <!-- Upload Zone -->
+    <section class="wm-upload-section" id="upload-section">
+      <div class="clay-card wm-upload-card" id="upload-card">
+        <div class="wm-dropzone" id="dropzone">
+          <div class="wm-dropzone-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" x2="12" y1="3" y2="15"/>
+            </svg>
+          </div>
+          <p class="wm-dropzone-text">Drag & drop your photo or video here</p>
+          <p class="wm-dropzone-hint">or click to browse • Max 500MB</p>
+          <div class="wm-supported-formats">
+            <span class="platform-tag">JPG</span>
+            <span class="platform-tag">PNG</span>
+            <span class="platform-tag">WebP</span>
+            <span class="platform-tag">MP4</span>
+            <span class="platform-tag">MKV</span>
+            <span class="platform-tag">MOV</span>
+          </div>
+          <input type="file" id="file-input" class="wm-file-input" accept="image/*,video/*" />
+        </div>
+        <div class="wm-upload-progress" id="upload-progress" hidden>
+          <div class="progress-bar-track clay-inset">
+            <div class="progress-bar-fill" id="upload-progress-fill"></div>
+          </div>
+          <p class="wm-upload-status" id="upload-status">Uploading...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Editor Section (hidden initially) -->
+    <section class="wm-editor-section" id="editor-section" hidden>
+      <div class="clay-card wm-editor-card">
+        <div class="wm-editor-toolbar">
+          <div class="wm-toolbar-left">
+            <h2 class="wm-editor-title" id="editor-filename">Select Watermark Area</h2>
+          </div>
+          <div class="wm-toolbar-right">
+            <div class="wm-method-toggle">
+              <button class="clay-btn clay-btn-sm wm-method-btn active" id="method-fill" data-method="fill">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                Content Fill
+              </button>
+              <button class="clay-btn clay-btn-sm wm-method-btn" id="method-blur" data-method="blur">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+                Blur
+              </button>
+            </div>
+            <button class="clay-btn clay-btn-sm wm-undo-btn" id="undo-btn" title="Undo last selection" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+              </svg>
+            </button>
+            <button class="clay-btn clay-btn-sm wm-clear-btn" id="clear-btn" title="Clear all selections" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="wm-canvas-wrap" id="canvas-wrap">
+          <canvas id="editor-canvas" class="wm-canvas"></canvas>
+          <div class="wm-selection-overlay" id="selection-overlay"></div>
+        </div>
+
+        <div class="wm-editor-info">
+          <p class="wm-info-text">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Click and drag to select watermark areas. You can add multiple selections.
+          </p>
+          <div class="wm-region-count" id="region-count">0 regions selected</div>
+        </div>
+
+        <!-- Process Button -->
+        <div class="wm-action-bar">
+          <button class="clay-btn wm-new-file-btn" id="new-file-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" x2="12" y1="3" y2="15"/>
+            </svg>
+            New File
+          </button>
+          <button class="clay-btn download-btn wm-process-btn" id="process-btn" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L12 16M12 16L7 11M12 16L17 11"/><path d="M2 17L2 19C2 20.1 2.9 21 4 21L20 21C21.1 21 22 20.1 22 19L22 17"/>
+            </svg>
+            <span id="process-btn-text">Remove Watermark</span>
+            <span class="btn-loader" id="process-loader" hidden><span class="spinner"></span></span>
+          </button>
+        </div>
+
+        <!-- Progress -->
+        <div class="wm-process-progress" id="process-progress" hidden>
+          <div class="progress-bar-track clay-inset">
+            <div class="progress-bar-fill" id="process-progress-fill"></div>
+          </div>
+          <div class="progress-details">
+            <span class="progress-percent" id="process-percent">0%</span>
+            <span class="progress-info" id="process-status">Processing...</span>
+          </div>
+        </div>
+
+        <!-- Complete -->
+        <div class="wm-complete" id="complete-section" hidden>
+          <div class="complete-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+          </div>
+          <p class="complete-text">Watermark Removed!</p>
+          <button class="clay-btn download-btn wm-download-btn" id="download-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
+            </svg>
+            Download Clean File
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <footer class="footer" id="footer">
+    <p>MediaGrab — A utility for backing up your personal creations. Respect copyright laws.</p>
+    <p style="margin-top: 8px;">
+      <a href="/privacy.html" style="color: var(--text-muted); text-decoration: none; font-size: var(--font-size-xs);">Privacy Policy</a>
+    </p>
+  </footer>
+
+  <script type="module" src="/watermark.js"></script>
+</body>
+</html>

@@ -174,6 +174,25 @@ body {
   gap: var(--space-xs);
 }
 
+.nav-link {
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.nav-link.active {
+  background: var(--text-accent);
+  color: var(--bg-primary);
+  box-shadow:
+    4px 4px 8px rgba(0, 0, 0, 0.4),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+    inset 2px 2px 4px rgba(255, 255, 255, 0.8);
+}
+
+.nav-link.active:hover {
+  background: #e8e8e8;
+  color: var(--bg-primary);
+}
+
 /* ---------- Clay Components ---------- */
 .clay-card {
   background: var(--bg-surface);

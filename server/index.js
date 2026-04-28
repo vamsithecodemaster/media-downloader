@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import downloadRoutes from './routes/download.js';
+import watermarkRoutes from './routes/watermark.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,10 +16,11 @@ app.use(cors({
   origin: ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // API Routes
 app.use('/api', downloadRoutes);
+app.use('/api/watermark', watermarkRoutes);
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../client/dist')));

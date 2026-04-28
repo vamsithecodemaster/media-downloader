@@ -1,8 +1,8 @@
 FROM node:20-slim
 
-# Install ffmpeg, python3, and yt-dlp
+# Install ffmpeg, python3, yt-dlp, and libvips for sharp
 RUN apt-get update && \
-    apt-get install -y ffmpeg python3 curl && \
+    apt-get install -y ffmpeg python3 curl libvips-dev && \
     curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
     chmod a+rx /usr/local/bin/yt-dlp
 
