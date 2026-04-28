@@ -30,6 +30,7 @@ const els = {
   toastContainer: document.getElementById('toast-container'),
   methodFill: document.getElementById('method-fill'),
   methodBlur: document.getElementById('method-blur'),
+  canvasLoader: document.getElementById('canvas-loader'),
 };
 
 // State
@@ -48,106 +49,137 @@ function init() {
   setupDropzone();
   setupCanvasEvents();
   setupToolbar();
-
   els.newFileBtn.addEventListener('click', resetToUpload);
   els.processBtn.addEventListener('click', handleProcess);
   els.downloadBtn.addEventListener('click', handleDownload);
 }
 
-// ---- Dropzone ----
+// ============================================================
+// DROPZONE
+// ============================================================
+
 function setupDropzone() {
   const dz = els.dropzone;
-
   ['dragenter', 'dragover'].forEach(e => {
     dz.addEventListener(e, (ev) => { ev.preventDefault(); dz.classList.add('dragover'); });
   });
   ['dragleave', 'drop'].forEach(e => {
     dz.addEventListener(e, (ev) => { ev.preventDefault(); dz.classList.remove('dragover'); });
   });
-
   dz.addEventListener('drop', (ev) => {
     const file = ev.dataTransfer?.files?.[0];
     if (file) uploadFile(file);
   });
-
   els.fileInput.addEventListener('change', (ev) => {
     const file = ev.target.files?.[0];
     if (file) uploadFile(file);
   });
 }
 
-// ---- Upload ----
+// ============================================================
+// UPLOAD
+// ============================================================
+
 async function uploadFile(file) {
   if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
     showToast('Please upload an image or video file', 'error');
     return;
   }
-
   if (file.size > 500 * 1024 * 1024) {
     showToast('File too large. Maximum 500MB', 'error');
     return;
   }
 
+  // Show upload progress immediately
   els.uploadProgress.hidden = false;
   els.uploadProgressFill.style.width = '0%';
   els.uploadStatus.textContent = 'Uploading...';
   els.dropzone.style.display = 'none';
 
+  // Create a local preview URL so we can show the image instantly
+  const localPreviewUrl = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith('video/');
+
   const formData = new FormData();
   formData.append('file', file);
 
-  try {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_URL}/upload`);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', `${API_URL}/upload`);
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 100);
-        els.uploadProgressFill.style.width = `${pct}%`;
-        els.uploadStatus.textContent = `Uploading... ${pct}%`;
-      }
-    };
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      els.uploadProgressFill.style.width = `${pct}%`;
+      els.uploadStatus.textContent = pct < 100
+        ? `Uploading... ${pct}%`
+        : 'Processing file...';
+    }
+  };
 
-    xhr.onload = () => {
+  xhr.onload = () => {
+    try {
       if (xhr.status === 200) {
         const data = JSON.parse(xhr.responseText);
         if (data.success) {
           currentJob = data;
           originalWidth = data.width;
           originalHeight = data.height;
-          showEditor(data);
+          // Use local blob URL for instant preview, fall back to server thumbnail
+          showEditor(data, localPreviewUrl, isVideo);
         } else {
-          throw new Error(data.error || 'Upload failed');
+          URL.revokeObjectURL(localPreviewUrl);
+          showToast(data.error || 'Upload failed', 'error');
+          resetUploadUI();
         }
       } else {
+        URL.revokeObjectURL(localPreviewUrl);
         const err = JSON.parse(xhr.responseText);
-        throw new Error(err.error || 'Upload failed');
+        showToast(err.error || 'Upload failed', 'error');
+        resetUploadUI();
       }
-    };
+    } catch (e) {
+      URL.revokeObjectURL(localPreviewUrl);
+      showToast('Upload failed', 'error');
+      resetUploadUI();
+    }
+  };
 
-    xhr.onerror = () => { throw new Error('Upload failed'); };
-    xhr.send(formData);
-  } catch (err) {
-    showToast(err.message, 'error');
+  xhr.onerror = () => {
+    URL.revokeObjectURL(localPreviewUrl);
+    showToast('Upload failed — check your connection', 'error');
     resetUploadUI();
-  }
+  };
+
+  xhr.send(formData);
 }
 
-// ---- Editor ----
-function showEditor(data) {
+// ============================================================
+// EDITOR — Show the canvas with media preview
+// ============================================================
+
+function showEditor(data, localPreviewUrl, isVideo) {
   els.uploadSection.hidden = true;
   els.editorSection.hidden = false;
   els.editorFilename.textContent = data.filename || 'Select Watermark Area';
+  els.completeSection.hidden = true;
+  els.processProgress.hidden = true;
   regions = [];
   updateRegionUI();
 
-  const previewUrl = data.previewUrl;
+  // Show loading state on canvas
+  showCanvasLoader(true);
 
-  if (data.isVideo) {
-    // For video, show first frame via video element
-    loadVideoFrame(previewUrl);
+  if (isVideo) {
+    loadVideoFrame(localPreviewUrl);
   } else {
-    loadImage(previewUrl);
+    // Load local blob URL first (instant), already in browser memory
+    loadImage(localPreviewUrl);
+  }
+}
+
+function showCanvasLoader(visible) {
+  if (els.canvasLoader) {
+    els.canvasLoader.hidden = !visible;
   }
 }
 
@@ -157,8 +189,12 @@ function loadImage(url) {
   img.onload = () => {
     mediaImage = img;
     drawCanvas();
+    showCanvasLoader(false);
   };
-  img.onerror = () => showToast('Failed to load preview', 'error');
+  img.onerror = () => {
+    showCanvasLoader(false);
+    showToast('Failed to load preview', 'error');
+  };
   img.src = url;
 }
 
@@ -166,29 +202,41 @@ function loadVideoFrame(url) {
   const video = document.createElement('video');
   video.crossOrigin = 'anonymous';
   video.muted = true;
+  video.playsInline = true;
   video.preload = 'auto';
 
   video.onloadeddata = () => {
-    video.currentTime = 0.5; // Seek to 0.5s for a good frame
+    // Seek to 0.5s for a representative frame
+    video.currentTime = Math.min(0.5, video.duration || 0.5);
   };
 
   video.onseeked = () => {
-    // Draw video frame to a temporary canvas to get an image
     const tc = document.createElement('canvas');
-    tc.width = video.videoWidth;
-    tc.height = video.videoHeight;
+    tc.width = video.videoWidth || 1920;
+    tc.height = video.videoHeight || 1080;
     const tctx = tc.getContext('2d');
-    tctx.drawImage(video, 0, 0);
+    tctx.drawImage(video, 0, 0, tc.width, tc.height);
 
     const img = new Image();
     img.onload = () => {
       mediaImage = img;
       drawCanvas();
+      showCanvasLoader(false);
+      URL.revokeObjectURL(url); // Free memory
     };
-    img.src = tc.toDataURL();
+    img.src = tc.toDataURL('image/jpeg', 0.9);
   };
 
-  video.onerror = () => showToast('Failed to load video preview', 'error');
+  video.onerror = () => {
+    showCanvasLoader(false);
+    // Try server thumbnail as fallback
+    if (currentJob?.thumbnailUrl) {
+      loadImage(currentJob.thumbnailUrl);
+    } else {
+      showToast('Failed to load video preview', 'error');
+    }
+  };
+
   video.src = url;
 }
 
@@ -197,22 +245,24 @@ function drawCanvas() {
   const canvas = els.canvas;
   const ctx = canvas.getContext('2d');
 
-  // Set canvas size to match image
   canvas.width = mediaImage.naturalWidth || mediaImage.width;
   canvas.height = mediaImage.naturalHeight || mediaImage.height;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(mediaImage, 0, 0);
+  ctx.drawImage(mediaImage, 0, 0, canvas.width, canvas.height);
 }
 
-// ---- Canvas Events (Selection) ----
+// ============================================================
+// CANVAS SELECTION EVENTS
+// ============================================================
+
 function setupCanvasEvents() {
   const wrap = els.canvasWrap;
 
   wrap.addEventListener('mousedown', (e) => startDraw(e));
   wrap.addEventListener('mousemove', (e) => moveDraw(e));
   wrap.addEventListener('mouseup', (e) => endDraw(e));
-  wrap.addEventListener('mouseleave', (e) => endDraw(e));
+  wrap.addEventListener('mouseleave', (e) => { if (isDrawing) endDraw(e); });
 
   // Touch support
   wrap.addEventListener('touchstart', (e) => {
@@ -232,17 +282,17 @@ function setupCanvasEvents() {
 function getCanvasPoint(e) {
   const rect = els.canvasWrap.getBoundingClientRect();
   return {
-    x: (e.clientX - rect.left) / rect.width,
-    y: (e.clientY - rect.top) / rect.height
+    x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
   };
 }
 
 function startDraw(e) {
-  if (e.target.closest('.wm-selection-rect')) return; // Don't draw when clicking delete
+  // Don't start drawing if clicking a delete button on a selection rect
+  if (e.target?.closest?.('.wm-selection-rect')) return;
   isDrawing = true;
   drawStart = getCanvasPoint(e);
 
-  // Create active selection visual
   activeRect = document.createElement('div');
   activeRect.className = 'wm-active-selection';
   els.selectionOverlay.appendChild(activeRect);
@@ -286,7 +336,6 @@ function endDraw(e) {
     return;
   }
 
-  // Clamp to valid range
   const region = {
     x: Math.max(0, Math.min(1, x)),
     y: Math.max(0, Math.min(1, y)),
@@ -300,7 +349,6 @@ function endDraw(e) {
 }
 
 function updateRegionUI() {
-  // Clear old selection rects
   els.selectionOverlay.innerHTML = '';
 
   regions.forEach((region, idx) => {
@@ -311,8 +359,8 @@ function updateRegionUI() {
     rect.style.width = `${region.w * 100}%`;
     rect.style.height = `${region.h * 100}%`;
 
-    // Delete button (the ::after pseudo-element handles the visual)
-    rect.addEventListener('click', (e) => {
+    // Click the × button to remove this region
+    rect.addEventListener('click', () => {
       regions.splice(idx, 1);
       updateRegionUI();
     });
@@ -327,13 +375,13 @@ function updateRegionUI() {
   els.processBtn.disabled = count === 0;
 }
 
-// ---- Toolbar ----
+// ============================================================
+// TOOLBAR
+// ============================================================
+
 function setupToolbar() {
   els.undoBtn.addEventListener('click', () => {
-    if (regions.length > 0) {
-      regions.pop();
-      updateRegionUI();
-    }
+    if (regions.length > 0) { regions.pop(); updateRegionUI(); }
   });
 
   els.clearBtn.addEventListener('click', () => {
@@ -350,7 +398,10 @@ function setupToolbar() {
   });
 }
 
-// ---- Process ----
+// ============================================================
+// PROCESS
+// ============================================================
+
 async function handleProcess() {
   if (!currentJob || regions.length === 0) return;
 
@@ -377,7 +428,6 @@ async function handleProcess() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Processing failed');
 
-    // Connect to SSE for progress
     connectSSE(currentJob.jobId);
   } catch (err) {
     showToast(err.message, 'error');
@@ -401,12 +451,13 @@ function connectSSE(jobId) {
     if (data.progress !== undefined) {
       const pct = Math.min(100, Math.max(0, data.progress));
       els.processProgressFill.style.width = `${pct}%`;
-      els.processPercent.textContent = `${pct}%`;
+      els.processPercent.textContent = `${Math.round(pct)}%`;
 
-      if (pct < 30) els.processStatus.textContent = 'Analyzing media...';
-      else if (pct < 70) els.processStatus.textContent = 'Removing watermark...';
-      else if (pct < 95) els.processStatus.textContent = 'Finalizing...';
-      else els.processStatus.textContent = 'Almost done...';
+      if (pct < 15) els.processStatus.textContent = 'Analyzing media...';
+      else if (pct < 50) els.processStatus.textContent = 'Removing watermark...';
+      else if (pct < 85) els.processStatus.textContent = 'Blending regions...';
+      else if (pct < 100) els.processStatus.textContent = 'Saving result...';
+      else els.processStatus.textContent = 'Done!';
     }
 
     if (data.status === 'completed') {
@@ -434,7 +485,10 @@ function handleDownload() {
   window.location.href = `${API_URL}/download/${currentJob.jobId}`;
 }
 
-// ---- Reset / Utility ----
+// ============================================================
+// RESET / UTILITY
+// ============================================================
+
 function resetToUpload() {
   els.editorSection.hidden = true;
   els.uploadSection.hidden = false;
@@ -454,7 +508,7 @@ function resetUploadUI() {
 }
 
 function resetProcessUI() {
-  els.processBtn.disabled = false;
+  els.processBtn.disabled = regions.length === 0;
   els.processBtnText.hidden = false;
   els.processLoader.hidden = true;
   els.processProgress.hidden = true;

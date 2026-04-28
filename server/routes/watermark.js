@@ -30,6 +30,9 @@ const upload = multer({
   }
 });
 
+/**
+ * POST /upload — Upload file and generate a small thumbnail for instant preview
+ */
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -37,36 +40,79 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const isVideo = file.mimetype.startsWith('video/');
     const jobId = path.basename(file.filename, path.extname(file.filename));
     let w = 1920, h = 1080;
+    let thumbnailPath = null;
+
     if (!isVideo) {
       const meta = await sharp(file.path).metadata();
       w = meta.width; h = meta.height;
+      // Generate a small thumbnail for instant preview (resized to max 1200px wide)
+      thumbnailPath = path.join(UPLOADS_DIR, `${jobId}_thumb.jpg`);
+      await sharp(file.path)
+        .resize({ width: 1200, withoutEnlargement: true })
+        .jpeg({ quality: 80 })
+        .toFile(thumbnailPath);
     } else {
       try {
         const d = await getVideoDimensions(file.path);
         w = d.width; h = d.height;
       } catch {}
+      // Generate video thumbnail using ffmpeg
+      thumbnailPath = path.join(UPLOADS_DIR, `${jobId}_thumb.jpg`);
+      try {
+        await extractVideoThumbnail(file.path, thumbnailPath);
+      } catch {
+        thumbnailPath = null;
+      }
     }
+
     jobs.set(jobId, {
       id: jobId, originalPath: file.path, originalName: file.originalname,
       mimeType: file.mimetype, isVideo, status: 'uploaded', progress: 0,
-      processedPath: null, error: null, createdAt: Date.now(), width: w, height: h
+      processedPath: null, error: null, createdAt: Date.now(),
+      width: w, height: h, thumbnailPath
     });
-    res.json({ success: true, jobId, isVideo, width: w, height: h,
-      filename: file.originalname, previewUrl: `/api/watermark/preview/${jobId}` });
+
+    res.json({
+      success: true, jobId, isVideo, width: w, height: h,
+      filename: file.originalname,
+      previewUrl: `/api/watermark/preview/${jobId}`,
+      thumbnailUrl: thumbnailPath ? `/api/watermark/thumb/${jobId}` : null
+    });
   } catch (error) {
+    console.error('Upload error:', error);
     res.status(500).json({ error: error.message || 'Upload failed' });
   }
 });
 
+/**
+ * GET /thumb/:id — Serve the small thumbnail (fast loading)
+ */
+router.get('/thumb/:id', (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job || !job.thumbnailPath || !fs.existsSync(job.thumbnailPath))
+    return res.status(404).json({ error: 'Thumbnail not found' });
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(job.thumbnailPath).pipe(res);
+});
+
+/**
+ * GET /preview/:id — Serve the full-res original file
+ */
 router.get('/preview/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job || !fs.existsSync(job.originalPath))
     return res.status(404).json({ error: 'File not found' });
   res.setHeader('Content-Type', job.mimeType);
   res.setHeader('Cache-Control', 'private, max-age=3600');
+  const stat = fs.statSync(job.originalPath);
+  res.setHeader('Content-Length', stat.size);
   fs.createReadStream(job.originalPath).pipe(res);
 });
 
+/**
+ * POST /process — Start watermark removal
+ */
 router.post('/process', async (req, res) => {
   try {
     const { jobId, regions, method } = req.body;
@@ -76,13 +122,16 @@ router.post('/process', async (req, res) => {
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!fs.existsSync(job.originalPath))
       return res.status(404).json({ error: 'File gone' });
-    job.status = 'processing'; job.progress = 0;
+    job.status = 'processing'; job.progress = 0; job.error = null;
     res.json({ success: true, jobId });
+
+    // Process in background
     try {
       if (job.isVideo) await processVideo(job, regions);
       else await processImage(job, regions, method || 'fill');
       job.status = 'completed'; job.progress = 100;
     } catch (err) {
+      console.error('Processing error:', err);
       job.status = 'error'; job.error = err.message;
     }
   } catch (error) {
@@ -90,6 +139,9 @@ router.post('/process', async (req, res) => {
   }
 });
 
+/**
+ * GET /status/:id — SSE progress stream
+ */
 router.get('/status/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -109,6 +161,9 @@ router.get('/status/:id', (req, res) => {
   req.on('close', () => clearInterval(iv));
 });
 
+/**
+ * GET /download/:id — Download processed file
+ */
 router.get('/download/:id', (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Not found' });
@@ -124,96 +179,148 @@ router.get('/download/:id', (req, res) => {
   fs.createReadStream(job.processedPath).pipe(res);
 });
 
+// ============================================================
+// IMAGE PROCESSING — Uses sharp's compositing pipeline
+// ============================================================
+
 async function processImage(job, regions, method) {
-  const ext = path.extname(job.originalPath);
-  const outPath = path.join(PROCESSED_DIR, `${job.id}_out${ext}`);
+  const inputPath = job.originalPath;
+  const ext = path.extname(inputPath).toLowerCase();
+  const outExt = ['.png', '.webp', '.tiff'].includes(ext) ? ext : '.jpg';
+  const outPath = path.join(PROCESSED_DIR, `${job.id}_out${outExt}`);
+  job.progress = 5;
+
+  const meta = await sharp(inputPath).metadata();
+  const W = meta.width, H = meta.height;
+
+  // Start with the original image
+  let pipeline = sharp(inputPath);
   job.progress = 10;
-  const meta = await sharp(job.originalPath).metadata();
-  const { width: W, height: H } = meta;
-  const buf = await sharp(job.originalPath).ensureAlpha().raw().toBuffer();
-  job.progress = 30;
-  const ch = 4;
+
+  // Build composite overlays — one blurred/filled patch per region
+  const composites = [];
+
   for (let i = 0; i < regions.length; i++) {
     const r = regions[i];
-    const rx = Math.max(0, Math.round(r.x * W));
-    const ry = Math.max(0, Math.round(r.y * H));
-    const rw = Math.min(W - rx, Math.round(r.w * W));
-    const rh = Math.min(H - ry, Math.round(r.h * H));
+    // Convert ratio coordinates to pixel coordinates
+    let rx = Math.max(0, Math.round(r.x * W));
+    let ry = Math.max(0, Math.round(r.y * H));
+    let rw = Math.round(r.w * W);
+    let rh = Math.round(r.h * H);
+
+    // Clamp to image bounds
+    if (rx + rw > W) rw = W - rx;
+    if (ry + rh > H) rh = H - ry;
     if (rw <= 0 || rh <= 0) continue;
-    if (method === 'fill') fillRegion(buf, W, H, ch, rx, ry, rw, rh);
-    else blurRegion(buf, W, H, ch, rx, ry, rw, rh);
-    job.progress = 30 + Math.round((i + 1) / regions.length * 50);
+
+    // Extract the region with extra padding for context
+    const pad = Math.max(20, Math.round(Math.min(rw, rh) * 0.4));
+    const exLeft = Math.max(0, rx - pad);
+    const exTop = Math.max(0, ry - pad);
+    const exRight = Math.min(W, rx + rw + pad);
+    const exBottom = Math.min(H, ry + rh + pad);
+    const exW = exRight - exLeft;
+    const exH = exBottom - exTop;
+
+    if (method === 'blur') {
+      // Heavy gaussian blur on the exact region
+      const blurRadius = Math.max(15, Math.round(Math.min(rw, rh) * 0.25));
+      // Ensure sigma is at least 1
+      const sigma = Math.max(1, blurRadius);
+
+      const blurredPatch = await sharp(inputPath)
+        .extract({ left: rx, top: ry, width: rw, height: rh })
+        .blur(sigma)
+        .toBuffer();
+
+      composites.push({
+        input: blurredPatch,
+        left: rx,
+        top: ry
+      });
+    } else {
+      // Content-fill: Extract a larger area, blur it heavily, then
+      // use the center (where the watermark was) as a replacement.
+      // This creates a smooth fill from surrounding context.
+      const blurSigma = Math.max(20, Math.round(Math.min(rw, rh) * 0.5));
+
+      const filledPatch = await sharp(inputPath)
+        .extract({ left: exLeft, top: exTop, width: exW, height: exH })
+        .blur(Math.max(1, blurSigma))
+        .toBuffer();
+
+      // Now extract just the watermark-sized portion from the blurred extended region
+      const innerLeft = rx - exLeft;
+      const innerTop = ry - exTop;
+
+      const croppedFill = await sharp(filledPatch)
+        .extract({ left: innerLeft, top: innerTop, width: rw, height: rh })
+        .toBuffer();
+
+      composites.push({
+        input: croppedFill,
+        left: rx,
+        top: ry
+      });
+    }
+
+    job.progress = 10 + Math.round(((i + 1) / regions.length) * 70);
   }
+
+  if (composites.length === 0) {
+    throw new Error('No valid regions to process');
+  }
+
   job.progress = 85;
-  const out = sharp(buf, { raw: { width: W, height: H, channels: ch } });
-  const le = ext.toLowerCase();
-  if (le === '.png') await out.png({ quality: 100 }).toFile(outPath);
-  else if (le === '.webp') await out.webp({ quality: 95 }).toFile(outPath);
-  else await out.jpeg({ quality: 95 }).toFile(outPath);
+
+  // Composite all patches onto the original
+  pipeline = pipeline.composite(composites);
+
+  // Output in appropriate format
+  if (outExt === '.png') await pipeline.png().toFile(outPath);
+  else if (outExt === '.webp') await pipeline.webp({ quality: 95 }).toFile(outPath);
+  else await pipeline.jpeg({ quality: 95 }).toFile(outPath);
+
+  job.progress = 100;
   job.processedPath = outPath;
 }
 
-function fillRegion(buf, W, H, ch, rx, ry, rw, rh) {
-  const margin = Math.max(8, Math.round(Math.min(rw, rh) * 0.25));
-  for (let y = ry; y < ry + rh && y < H; y++) {
-    for (let x = rx; x < rx + rw && x < W; x++) {
-      const relX = (x - rx) / rw, relY = (y - ry) / rh;
-      const lx = Math.max(0, rx - margin), rx2 = Math.min(W - 1, rx + rw + margin);
-      const ty = Math.max(0, ry - margin), by = Math.min(H - 1, ry + rh + margin);
-      const idx = (y * W + x) * ch;
-      for (let c = 0; c < 3; c++) {
-        const lv = buf[(y * W + lx) * ch + c], rv = buf[(y * W + rx2) * ch + c];
-        const tv = buf[(ty * W + x) * ch + c], bv = buf[(by * W + x) * ch + c];
-        buf[idx + c] = Math.round(((lv * (1 - relX) + rv * relX) + (tv * (1 - relY) + bv * relY)) / 2);
-      }
-    }
-  }
-}
-
-function blurRegion(buf, W, H, ch, rx, ry, rw, rh) {
-  const rad = Math.max(6, Math.round(Math.min(rw, rh) * 0.12));
-  const tmp = Buffer.from(buf);
-  for (let pass = 0; pass < 3; pass++) {
-    for (let y = ry; y < ry + rh && y < H; y++) {
-      for (let x = rx; x < rx + rw && x < W; x++) {
-        let r = 0, g = 0, b = 0, cnt = 0;
-        for (let dy = -rad; dy <= rad; dy++) {
-          for (let dx = -rad; dx <= rad; dx++) {
-            const sx = Math.min(W - 1, Math.max(0, x + dx));
-            const sy = Math.min(H - 1, Math.max(0, y + dy));
-            const si = (sy * W + sx) * ch;
-            r += buf[si]; g += buf[si + 1]; b += buf[si + 2]; cnt++;
-          }
-        }
-        const di = (y * W + x) * ch;
-        tmp[di] = Math.round(r / cnt); tmp[di + 1] = Math.round(g / cnt); tmp[di + 2] = Math.round(b / cnt);
-      }
-    }
-    for (let y = ry; y < ry + rh && y < H; y++) {
-      for (let x = rx; x < rx + rw && x < W; x++) {
-        const i = (y * W + x) * ch;
-        buf[i] = tmp[i]; buf[i + 1] = tmp[i + 1]; buf[i + 2] = tmp[i + 2];
-      }
-    }
-  }
-}
+// ============================================================
+// VIDEO PROCESSING — Uses ffmpeg delogo filter
+// ============================================================
 
 function processVideo(job, regions) {
   return new Promise((resolve, reject) => {
     const ext = path.extname(job.originalPath);
     const outPath = path.join(PROCESSED_DIR, `${job.id}_out${ext === '.mov' ? '.mp4' : ext}`);
     job.progress = 5;
+
     const filters = regions.map(r => {
-      const x = Math.round(r.x * job.width), y = Math.round(r.y * job.height);
-      const w = Math.round(r.w * job.width), h = Math.round(r.h * job.height);
-      return w > 0 && h > 0 ? `delogo=x=${x}:y=${y}:w=${w}:h=${h}` : null;
+      const x = Math.max(0, Math.round(r.x * job.width));
+      const y = Math.max(0, Math.round(r.y * job.height));
+      const w = Math.max(1, Math.round(r.w * job.width));
+      const h = Math.max(1, Math.round(r.h * job.height));
+      return `delogo=x=${x}:y=${y}:w=${w}:h=${h}`;
     }).filter(Boolean);
+
     if (!filters.length) return reject(new Error('No valid regions'));
-    const args = ['-i', job.originalPath, '-vf', filters.join(','),
-      '-c:a', 'copy', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
-      '-movflags', '+faststart', '-y', outPath];
+
+    const args = [
+      '-i', job.originalPath,
+      '-vf', filters.join(','),
+      '-c:a', 'copy',
+      '-c:v', 'libx264',
+      '-preset', 'medium',
+      '-crf', '18',
+      '-movflags', '+faststart',
+      '-y', outPath
+    ];
+
+    console.log('FFmpeg command:', 'ffmpeg', args.join(' '));
+
     const proc = spawn('ffmpeg', args);
     let stderr = '';
+
     proc.stderr.on('data', d => {
       const line = d.toString(); stderr += line;
       const tm = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
@@ -226,13 +333,23 @@ function processVideo(job, regions) {
         }
       }
     });
+
     proc.on('close', code => {
-      if (code !== 0) return reject(new Error(`FFmpeg failed (${code})`));
-      job.processedPath = outPath; resolve(outPath);
+      if (code !== 0) {
+        console.error('FFmpeg stderr:', stderr.slice(-1000));
+        return reject(new Error(`FFmpeg failed (code ${code})`));
+      }
+      job.processedPath = outPath;
+      resolve(outPath);
     });
-    proc.on('error', err => reject(new Error('FFmpeg error: ' + err.message)));
+
+    proc.on('error', err => reject(new Error('FFmpeg not found: ' + err.message)));
   });
 }
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 function getVideoDimensions(filePath) {
   return new Promise((resolve) => {
@@ -250,12 +367,31 @@ function getVideoDimensions(filePath) {
   });
 }
 
-// Cleanup old jobs
+function extractVideoThumbnail(videoPath, outPath) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-i', videoPath,
+      '-ss', '00:00:01',
+      '-vframes', '1',
+      '-vf', 'scale=1200:-1',
+      '-q:v', '3',
+      '-y', outPath
+    ];
+    const proc = spawn('ffmpeg', args);
+    proc.on('close', code => {
+      if (code === 0 && fs.existsSync(outPath)) resolve(outPath);
+      else reject(new Error('Thumbnail extraction failed'));
+    });
+    proc.on('error', reject);
+  });
+}
+
+// Cleanup old jobs every 15 min
 setInterval(() => {
   const cutoff = Date.now() - 3600000;
   for (const [id, job] of jobs) {
     if (job.createdAt < cutoff) {
-      [job.originalPath, job.processedPath].forEach(p => {
+      [job.originalPath, job.processedPath, job.thumbnailPath].forEach(p => {
         if (p && fs.existsSync(p)) try { fs.unlinkSync(p); } catch {}
       });
       jobs.delete(id);
