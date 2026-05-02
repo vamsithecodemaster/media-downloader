@@ -8,6 +8,8 @@ const elements = {
   pasteBtn: document.getElementById('paste-btn'),
   platformIcon: document.getElementById('platform-icon'),
   inputCard: document.getElementById('input-card'),
+  localFileInput: document.getElementById('local-file-input'),
+  localProcessBtn: document.getElementById('local-process-btn'),
   
   previewSection: document.getElementById('preview-section'),
   previewThumbnail: document.getElementById('preview-thumbnail'),
@@ -84,6 +86,7 @@ function setupEventListeners() {
   });
 
   elements.downloadBtn.addEventListener('click', handleDownload);
+  elements.localProcessBtn?.addEventListener('click', handleLocalProcess);
   elements.clearHistoryBtn.addEventListener('click', clearHistory);
 }
 
@@ -318,6 +321,55 @@ function connectToSSE(downloadId, mediaInfo) {
       elements.downloadBtn.disabled = false;
     }
   };
+}
+
+
+async function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1]);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleLocalProcess() {
+  const file = elements.localFileInput?.files?.[0];
+  if (!file) return showToast('Please choose a photo or video file', 'error');
+
+  const wmValues = [elements.wmX.value, elements.wmY.value, elements.wmW.value, elements.wmH.value];
+  const hasWatermarkArea = wmValues.every((v) => v !== '' && !Number.isNaN(Number(v)));
+  if (!hasWatermarkArea) return showToast('Please fill x, y, width and height first', 'error');
+
+  elements.localProcessBtn.disabled = true;
+  elements.localProcessBtn.querySelector('.btn-text').textContent = 'Processing...';
+
+  try {
+    const base64 = await fileToBase64(file);
+    const removeWatermarkArea = { x: Number(elements.wmX.value), y: Number(elements.wmY.value), w: Number(elements.wmW.value), h: Number(elements.wmH.value) };
+
+    const res = await fetch(`${API_URL}/process-local`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        fileBase64: base64,
+        removeWatermarkArea,
+        watermarkMode: elements.wmMode?.value || 'blur'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to process file');
+    window.location.href = `${API_URL}/file/${data.downloadId}`;
+    showToast('Processed file is downloading', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    elements.localProcessBtn.disabled = false;
+    elements.localProcessBtn.querySelector('.btn-text').textContent = 'Process File';
+  }
 }
 
 // Trigger File Save

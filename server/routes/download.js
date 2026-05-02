@@ -163,6 +163,43 @@ router.post('/download', async (req, res) => {
   }
 });
 
+
+router.post('/process-local', async (req, res) => {
+  try {
+    const { filename, mimeType, fileBase64, removeWatermarkArea, watermarkMode } = req.body;
+    if (!fileBase64 || !removeWatermarkArea) {
+      return res.status(400).json({ error: 'fileBase64 and removeWatermarkArea are required' });
+    }
+
+    const downloadId = uuidv4();
+    const safeBase = (filename || 'upload').replace(/[^a-zA-Z0-9_\-\. ]/g, '').trim() || 'upload';
+    const ext = path.extname(safeBase) || (mimeType?.startsWith('image/') ? '.jpg' : '.mp4');
+    const inputPath = path.join(DOWNLOADS_DIR, `${downloadId}_src${ext}`);
+    const outputPath = path.join(DOWNLOADS_DIR, `${downloadId}_cleaned${ext}`);
+
+    fs.writeFileSync(inputPath, Buffer.from(fileBase64, 'base64'));
+    await runFfmpegWatermarkFilter(inputPath, outputPath, removeWatermarkArea, watermarkMode || 'blur');
+
+    downloads.set(downloadId, {
+      id: downloadId,
+      url: 'local-upload',
+      formatId: 'local',
+      ext: ext.replace('.', ''),
+      title: path.basename(safeBase, ext),
+      status: 'completed',
+      progress: { percent: 100, status: 'Complete' },
+      filePath: outputPath,
+      error: null,
+      createdAt: Date.now()
+    });
+
+    res.json({ success: true, downloadId });
+  } catch (error) {
+    console.error('Local process error:', error.message);
+    res.status(500).json({ error: error.message || 'Failed to process local file' });
+  }
+});
+
 /**
  * GET /api/progress/:id
  * Server-Sent Events endpoint for real-time progress
