@@ -104,6 +104,23 @@
           <span class="platform-tag">+1000 more</span>
         </div>
       </div>
+
+      <div class="clay-card input-card" id="upload-card">
+        <h3 class="section-label">Remove Watermark from Local Photo/Video</h3>
+        <div class="upload-row">
+          <input type="file" id="local-file-input" accept="image/*,video/*" />
+          <button class="clay-btn fetch-btn" id="local-process-btn"><span class="btn-text">Process File</span></button>
+        </div>
+        <p class="watermark-help">Set rectangle here (x,y,width,height), then process.</p>
+        <div class="watermark-mode-row"><label for="local-wm-mode">Mode</label><select id="local-wm-mode"><option value="blur">Blur (best for moving content)</option><option value="delogo">Delogo (best for static logos)</option></select></div>
+        <div class="watermark-grid">
+          <input type="number" id="local-wm-x" placeholder="x" min="0" />
+          <input type="number" id="local-wm-y" placeholder="y" min="0" />
+          <input type="number" id="local-wm-w" placeholder="width" min="1" />
+          <input type="number" id="local-wm-h" placeholder="height" min="1" />
+        </div>
+      </div>
+
     </section>
 
     <!-- Media Preview Section (hidden initially) -->
@@ -126,6 +143,18 @@
           <h3 class="section-label">Select Quality</h3>
           <div class="format-grid" id="format-grid">
             <!-- Format options will be injected here -->
+          </div>
+        </div>
+
+        <!-- Watermark/Text Remover -->
+        <div class="watermark-section" id="watermark-section">
+          <h3 class="section-label">Watermark/Text Remover (optional)</h3>
+          <p class="watermark-help">For moving scenes, use Blur mode to avoid delogo smear artifacts. Enter the rectangle in pixels.</p>
+          <div class="watermark-mode-row"><label for="wm-mode">Mode</label><select id="wm-mode"><option value="blur">Blur (best for moving content)</option><option value="delogo">Delogo (best for static logos)</option></select></div><div class="watermark-grid">
+            <input type="number" id="wm-x" placeholder="x" min="0" />
+            <input type="number" id="wm-y" placeholder="y" min="0" />
+            <input type="number" id="wm-w" placeholder="width" min="1" />
+            <input type="number" id="wm-h" placeholder="height" min="1" />
           </div>
         </div>
 
