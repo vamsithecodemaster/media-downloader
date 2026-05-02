@@ -24,9 +24,10 @@ jobs:
             # Update this path to where your project is located on the VPS!
             cd /opt/media-downloader
             
-            # Pull the latest changes from GitHub
-            git reset --hard HEAD
-            git pull origin master
+            # Fetch latest and force-sync to remote (handles force pushes)
+            git fetch origin
+            git reset --hard origin/master
+            git clean -fd
             
             # Rebuild and restart the Docker container
             sudo docker compose up -d --build
