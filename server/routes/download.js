@@ -7,6 +7,36 @@ import { getMediaInfo, downloadMedia } from '../utils/ytdlp.js';
 
 const router = Router();
 
+function runFfmpegWatermarkFilter(inputPath, outputPath, area, mode = 'delogo') {
+  const x = Number(area.x);
+  const y = Number(area.y);
+  const w = Number(area.w);
+  const h = Number(area.h);
+
+  if ([x, y, w, h].some((v) => Number.isNaN(v) || v < 0) || w === 0 || h === 0) {
+    throw new Error('Invalid watermark area. x, y, w, h must be positive numbers.');
+  }
+
+  const filter = `delogo=x=${x}:y=${y}:w=${w}:h=${h}`;
+  const filterComplex = `[0:v]split=2[base][wm];[wm]crop=${w}:${h}:${x}:${y},boxblur=10:2[blur];[base][blur]overlay=${x}:${y}`;
+
+  return new Promise((resolve, reject) => {
+    const args = mode === 'blur'
+      ? ['-y', '-i', inputPath, '-filter_complex', filterComplex, '-map', '0:a?', '-c:a', 'copy', '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', outputPath]
+      : ['-y', '-i', inputPath, '-vf', filter, '-c:a', 'copy', outputPath];
+
+    const ffmpeg = spawn('ffmpeg', args);
+    let stderr = '';
+    ffmpeg.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    ffmpeg.on('close', (code) => {
+      if (code === 0) resolve(outputPath);
+      else reject(new Error(`ffmpeg failed (${code}). ${stderr.split(/\r?\n/).slice(-5).join(' ')}`));
+    });
+    ffmpeg.on('error', (err) => reject(new Error(`Failed to start ffmpeg: ${err.message}`)));
+  });
+}
+
+
 // In-memory store for active downloads
 const downloads = new Map();
 
@@ -57,7 +87,7 @@ router.post('/info', async (req, res) => {
  */
 router.post('/download', async (req, res) => {
   try {
-    const { url, formatId, ext, title } = req.body;
+    const { url, formatId, ext, title, removeWatermarkArea, watermarkMode } = req.body;
 
     if (!url || !formatId) {
       return res.status(400).json({ error: 'URL and formatId are required' });
@@ -101,11 +131,20 @@ router.post('/download', async (req, res) => {
         }
       );
 
+      let finalFilePath = filePath;
+      if (removeWatermarkArea) {
+        const parsed = path.parse(filePath);
+        const cleanedPath = path.join(parsed.dir, `${parsed.name}_cleaned${parsed.ext}`);
+        const dl = downloads.get(downloadId);
+        if (dl) dl.progress = { percent: 99, status: 'Removing watermark/text...' };
+        finalFilePath = await runFfmpegWatermarkFilter(filePath, cleanedPath, removeWatermarkArea, watermarkMode || 'delogo');
+      }
+
       const dl = downloads.get(downloadId);
       if (dl) {
         dl.status = 'completed';
         dl.progress = { percent: 100, status: 'Complete' };
-        dl.filePath = filePath;
+        dl.filePath = finalFilePath;
       }
     } catch (error) {
       console.error('Download error:', error.message);

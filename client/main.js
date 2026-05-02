@@ -18,6 +18,11 @@ const elements = {
   
   formatGrid: document.getElementById('format-grid'),
   downloadBtn: document.getElementById('download-btn'),
+  wmX: document.getElementById('wm-x'),
+  wmY: document.getElementById('wm-y'),
+  wmW: document.getElementById('wm-w'),
+  wmH: document.getElementById('wm-h'),
+  wmMode: document.getElementById('wm-mode'),
   
   progressSection: document.getElementById('progress-section'),
   progressFill: document.getElementById('progress-fill'),
@@ -217,6 +222,12 @@ async function handleDownload() {
   elements.progressInfo.textContent = 'Requesting download...';
 
   try {
+    const wmValues = [elements.wmX.value, elements.wmY.value, elements.wmW.value, elements.wmH.value];
+    const hasWatermarkArea = wmValues.every((v) => v !== '' && !Number.isNaN(Number(v)));
+    const removeWatermarkArea = hasWatermarkArea
+      ? { x: Number(elements.wmX.value), y: Number(elements.wmY.value), w: Number(elements.wmW.value), h: Number(elements.wmH.value) }
+      : null;
+
     const res = await fetch(`${API_URL}/download`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -224,7 +235,9 @@ async function handleDownload() {
         url: currentMediaInfo.originalUrl,
         formatId: selectedFormatId,
         ext: ext,
-        title: currentMediaInfo.title
+        title: currentMediaInfo.title,
+        removeWatermarkArea,
+        watermarkMode: elements.wmMode?.value || 'blur'
       })
     });
 
