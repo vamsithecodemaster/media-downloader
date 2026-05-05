@@ -6,10 +6,10 @@
   <!-- SEO Primary Meta Tags -->
   <title>MediaGrab - Download 4K Videos from Instagram, X, TikTok & More</title>
   <meta name="title" content="MediaGrab - Download 4K Videos from Instagram, X, TikTok & More">
-  <meta name="description" content="Download high-quality videos and audio from Instagram, X (Twitter), TikTok, Reddit, and Facebook. Fast, free, and secure media downloader.">
+  <meta name="description" content="Download high-quality videos and audio from Instagram, X (Twitter), TikTok, Reddit, and Facebook. Fast, free, and secure media downloader supporting 1000+ platforms.">
   <meta name="keywords" content="social media backup, personal media archiver, instagram backup tool, save my tiktok videos, high quality media backup, secure content archiving, 4k 60fps backup" />
   <meta name="author" content="MediaGrab" />
-  
+
   <!-- Indexing Directives (Tells Google to rank the page) -->
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <meta name="googlebot" content="index, follow" />
@@ -42,6 +42,9 @@
   <!-- Background grain overlay -->
   <div class="grain-overlay" aria-hidden="true"></div>
 
+  <!-- Mobile nav overlay -->
+  <div class="nav-overlay" id="nav-overlay"></div>
+
   <!-- Header -->
   <header class="header" id="header">
     <div class="header-inner">
@@ -49,6 +52,20 @@
         <span class="logo-icon">▼</span>
         <span class="logo-text">MediaGrab</span>
       </a>
+      <nav class="header-nav" id="header-nav">
+        <a href="/" class="nav-link active">Home</a>
+        <a href="/about.html" class="nav-link">About</a>
+        <a href="/blog.html" class="nav-link">Blog</a>
+        <a href="/faq.html" class="nav-link">FAQ</a>
+        <a href="/contact.html" class="nav-link">Contact</a>
+      </nav>
+      <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -173,6 +190,151 @@
       </div>
     </section>
 
+    <!-- ====== CONTENT SECTIONS (for AdSense compliance) ====== -->
+
+    <!-- Features Section -->
+    <section class="features-section" id="features-section">
+      <div class="section-heading">
+        <h2>Why Choose MediaGrab?</h2>
+        <p>The fastest, safest way to backup your social media content.</p>
+      </div>
+      <div class="features-grid">
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <h3>Lightning Fast</h3>
+          <p>Our optimized servers process your media in seconds, not minutes. No waiting around for your files.</p>
+        </div>
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>Private & Secure</h3>
+          <p>We never store your downloads or track your activity. All files are automatically purged from our servers within an hour.</p>
+        </div>
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <h3>1000+ Platforms</h3>
+          <p>From Instagram and TikTok to niche platforms — MediaGrab supports over 1000 websites for maximum compatibility.</p>
+        </div>
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>
+          <h3>Multiple Formats</h3>
+          <p>Choose from various quality options and formats including MP4, WebM, MP3, and more. Up to 4K resolution supported.</p>
+        </div>
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h3>No Software Required</h3>
+          <p>MediaGrab works entirely in your browser. No downloads, no installations, no plugins needed. Just paste and go.</p>
+        </div>
+        <div class="clay-card feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <h3>Real-Time Progress</h3>
+          <p>Watch your download progress in real time with detailed speed and ETA information. Always know where your file is.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="section-heading">
+        <h2>How It Works</h2>
+        <p>Three simple steps to backup your content.</p>
+      </div>
+      <div class="steps-row">
+        <div class="clay-card step-card">
+          <div class="step-number">1</div>
+          <h3>Paste the Link</h3>
+          <p>Copy the URL of the media you want to backup from any supported platform and paste it into the input field above.</p>
+        </div>
+        <div class="step-connector">→</div>
+        <div class="clay-card step-card">
+          <div class="step-number">2</div>
+          <h3>Choose Quality</h3>
+          <p>Select your preferred quality and format. We automatically detect the best available options for your media.</p>
+        </div>
+        <div class="step-connector">→</div>
+        <div class="clay-card step-card">
+          <div class="step-number">3</div>
+          <h3>Download</h3>
+          <p>Click download and your file will be processed on our servers and delivered straight to your device in seconds.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Supported Platforms Detail -->
+    <section class="platforms-section" id="platforms-detail">
+      <div class="section-heading">
+        <h2>Supported Platforms</h2>
+        <p>MediaGrab works with all major social media and content platforms.</p>
+      </div>
+      <div class="platforms-grid">
+        <div class="clay-card platform-card">
+          <div class="platform-name">Instagram</div>
+          <div class="platform-desc">Download Reels, Stories, IGTV videos, and photo posts. Supports both public and shared content links.</div>
+          <div class="platform-formats">
+            <span class="format-badge">MP4</span>
+            <span class="format-badge">JPG</span>
+            <span class="format-badge">HD</span>
+          </div>
+        </div>
+        <div class="clay-card platform-card">
+          <div class="platform-name">TikTok</div>
+          <div class="platform-desc">Save your favorite TikTok videos in their original quality, without watermarks when available.</div>
+          <div class="platform-formats">
+            <span class="format-badge">MP4</span>
+            <span class="format-badge">HD</span>
+            <span class="format-badge">Audio</span>
+          </div>
+        </div>
+        <div class="clay-card platform-card">
+          <div class="platform-name">Twitter / X</div>
+          <div class="platform-desc">Download videos, GIFs, and images from tweets. Multiple quality options available for video content.</div>
+          <div class="platform-formats">
+            <span class="format-badge">MP4</span>
+            <span class="format-badge">GIF</span>
+            <span class="format-badge">4K</span>
+          </div>
+        </div>
+        <div class="clay-card platform-card">
+          <div class="platform-name">Reddit</div>
+          <div class="platform-desc">Download videos and images from Reddit posts, including content hosted on v.redd.it and i.redd.it.</div>
+          <div class="platform-formats">
+            <span class="format-badge">MP4</span>
+            <span class="format-badge">Audio</span>
+            <span class="format-badge">HD</span>
+          </div>
+        </div>
+        <div class="clay-card platform-card">
+          <div class="platform-name">Facebook</div>
+          <div class="platform-desc">Save videos from Facebook posts, Reels, and Watch. Supports both standard and HD quality downloads.</div>
+          <div class="platform-formats">
+            <span class="format-badge">MP4</span>
+            <span class="format-badge">HD</span>
+            <span class="format-badge">SD</span>
+          </div>
+        </div>
+        <div class="clay-card platform-card">
+          <div class="platform-name">+1000 More</div>
+          <div class="platform-desc">Powered by yt-dlp, MediaGrab supports over 1000 additional websites and platforms for media downloading.</div>
+          <div class="platform-formats">
+            <span class="format-badge">Video</span>
+            <span class="format-badge">Audio</span>
+            <span class="format-badge">Various</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Toast Notification Container -->
@@ -180,12 +342,52 @@
 
   <!-- Footer -->
   <footer class="footer" id="footer">
-    <p>MediaGrab — A utility for backing up your personal creations. Respect copyright laws.</p>
-    <p style="margin-top: 8px;">
-      <a href="/privacy.html" style="color: var(--text-muted); text-decoration: none; font-size: var(--font-size-xs); transition: color 0.2s ease;">Privacy Policy</a>
-    </p>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="/" class="logo">
+          <span class="logo-icon">▼</span>
+          <span class="logo-text">MediaGrab</span>
+        </a>
+        <p>A free, fast, and secure utility for backing up your personal social media content in the highest quality available.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Pages</h4>
+        <ul>
+          <li><a href="/about.html">About Us</a></li>
+          <li><a href="/blog.html">Blog</a></li>
+          <li><a href="/faq.html">FAQ</a></li>
+          <li><a href="/contact.html">Contact</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="/privacy.html">Privacy Policy</a></li>
+          <li><a href="/terms.html">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2026 MediaGrab. All rights reserved. For personal use only — respect copyright laws.</p>
+    </div>
   </footer>
 
   <script type="module" src="/main.js"></script>
+  <script>
+    // Mobile nav toggle
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const nav = document.getElementById('header-nav');
+    const overlay = document.getElementById('nav-overlay');
+    if (menuBtn) {
+      menuBtn.addEventListener('click', () => {
+        nav.classList.toggle('open');
+        overlay.classList.toggle('active');
+      });
+      overlay.addEventListener('click', () => {
+        nav.classList.remove('open');
+        overlay.classList.remove('active');
+      });
+    }
+  </script>
 </body>
 </html>

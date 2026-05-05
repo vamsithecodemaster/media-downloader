@@ -28,8 +28,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Any other route should serve the frontend application
+// Any route that doesn't match a static file should serve the main app
 app.get('*', (req, res) => {
+  // Don't override API routes
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
