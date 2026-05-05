@@ -23,9 +23,7 @@ export default defineConfig({
         blog: resolve(__dirname, 'blog.html'),
         'blog-backup-social-media': resolve(__dirname, 'blog-backup-social-media.html'),
         'blog-video-formats': resolve(__dirname, 'blog-video-formats.html'),
-        'blog-archive-instagram': resolve(__dirname, 'blog-archive-instagram.html'),
-        'blog-tiktok-memories': resolve(__dirname, 'blog-tiktok-memories.html'),
-        'blog-digital-hoarding': resolve(__dirname, 'blog-digital-hoarding.html'),
+
       }
     }
   }
